@@ -257,7 +257,7 @@ final class NodeController extends BaseController
     private function validateCustomConfig(int $sort, string $raw): ?string
     {
         $config = json_decode($raw, true);
-        if (! is_array($config)) {
+        if (! is_array($config) || ! is_object(json_decode($raw))) {
             return 'custom_config 必须是有效的 JSON 对象';
         }
         if ($sort !== 15) {
@@ -269,13 +269,53 @@ final class NodeController extends BaseController
         if ($port === false) {
             return 'Hysteria2 的 offset_port_node 必须是 1-65535 的端口';
         }
+        $objects = json_decode($raw);
         $hysteria = $config['hysteria2'] ?? null;
-        if (! is_array($hysteria) || (int) ($hysteria['version'] ?? 2) !== 2) {
+        if (! is_object($objects->hysteria2 ?? null) || ($hysteria['version'] ?? 2) !== 2) {
             return 'Hysteria2 custom_config 必须包含 hysteria2.version=2';
         }
+        if (isset($hysteria['version']) && ! is_int($hysteria['version'])) {
+            return 'Hysteria2 version 必须是整数 2';
+        }
+        $idle = $hysteria['udpIdleTimeout'] ?? 0;
+        if (! is_int($idle) || ($idle !== 0 && ($idle < 2 || $idle > 600))) {
+            return 'udpIdleTimeout 必须为 0 或 2-600 的整数';
+        }
+        if (isset($config['offset_port_user']) && filter_var($config['offset_port_user'], FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1, 'max_range' => 65535],
+        ]) === false) {
+            return 'offset_port_user 必须是 1-65535 的端口';
+        }
+        if (isset($hysteria['finalmask']) && ! is_object($objects->hysteria2->finalmask)) {
+            return 'finalmask 必须是对象';
+        }
+        $masks = $hysteria['finalmask']['udp'] ?? [];
+        if (! is_array($masks) || ! array_is_list($masks)) {
+            return 'finalmask.udp 必须是数组';
+        }
+        foreach ($masks as $mask) {
+            if (! is_array($mask) || ! is_string($mask['type'] ?? null)) {
+                return 'finalmask.udp 的每项必须包含 type';
+            }
+            if (($mask['type'] ?? '') === 'salamander' &&
+                (! is_string($mask['settings']['password'] ?? null) || strlen($mask['settings']['password']) < 4)) {
+                return 'Salamander 密码必须至少包含 4 字节';
+            }
+        }
         $hop = $hysteria['portHopping'] ?? null;
+        if ($hop !== null && ! is_object($objects->hysteria2->portHopping)) {
+            return 'portHopping 必须是对象';
+        }
+        foreach (['enabled', 'autoConfigureFirewall'] as $key) {
+            if (isset($hop[$key]) && ! is_bool($hop[$key])) {
+                return 'portHopping 开关必须使用 JSON 布尔值';
+            }
+        }
         if (is_array($hop) && ($hop['enabled'] ?? false)) {
-            $ports = (string) ($hop['ports'] ?? '');
+            if (! is_string($hop['ports'] ?? null)) {
+                return 'portHopping.ports 必须是字符串';
+            }
+            $ports = $hop['ports'];
             if ($ports === '' || preg_match('/^\d{1,5}(?:-\d{1,5})?(?:,\s*\d{1,5}(?:-\d{1,5})?)*$/D', $ports) !== 1) {
                 return 'Hysteria2 端口跳跃 ports 格式无效';
             }

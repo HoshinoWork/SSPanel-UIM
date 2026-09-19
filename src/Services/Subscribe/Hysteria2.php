@@ -36,7 +36,9 @@ final class Hysteria2 extends Base
         $quic = $finalMask['quicParams'] ?? [];
         $udpMasks = $finalMask['udp'] ?? [];
         $hop = $hysteria['portHopping'] ?? [];
-        $ports = $hop['ports'] ?? ($quic['udpHop']['ports'] ?? '');
+        $ports = array_key_exists('portHopping', $hysteria)
+            ? (($hop['enabled'] ?? false) ? ($hop['ports'] ?? '') : '')
+            : ($quic['udpHop']['ports'] ?? '');
         if (is_array($ports)) {
             $ports = implode(',', $ports);
         }
@@ -53,7 +55,7 @@ final class Hysteria2 extends Base
             'server' => $node->server,
             'port' => (int) ($custom['offset_port_user'] ?? ($custom['offset_port_node'] ?? 443)),
             'sni' => (string) ($custom['host'] ?? $node->server),
-            'insecure' => (bool) ($custom['allow_insecure'] ?? false),
+            'insecure' => filter_var($custom['allow_insecure'] ?? false, FILTER_VALIDATE_BOOLEAN),
             'salamander' => $salamander,
             'congestion' => (string) ($quic['congestion'] ?? ''),
             'up' => $quic['brutalUp'] ?? null,

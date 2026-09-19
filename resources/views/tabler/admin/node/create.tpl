@@ -206,7 +206,7 @@
                     udpIdleTimeout: 60,
                     masquerade: {type: '404'},
                     finalmask: {
-                        udp: [{type: 'salamander', settings: {password: ''}}],
+                        udp: [],
                         quicParams: {congestion: 'bbr'},
                     },
                     portHopping: {enabled: false, autoConfigureFirewall: false, ports: ''},
