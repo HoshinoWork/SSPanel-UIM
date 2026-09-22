@@ -173,15 +173,7 @@ final class V2RayJson extends Base
                     if ($hy2['insecure'] && $pin === '') {
                         throw new \InvalidArgumentException('Xray Hysteria2 requires pinnedPeerCertSha256 for an untrusted certificate; allowInsecure is no longer supported.');
                     }
-                    $finalMask = $hysteria['finalmask'] ?? [];
-                    if ($hy2['ports'] !== '') {
-                        $finalMask['quicParams']['udpHop']['ports'] = $hy2['ports'];
-                    } else {
-                        unset($finalMask['quicParams']['udpHop']);
-                    }
-                    if (isset($finalMask['quicParams']) && $finalMask['quicParams'] === []) {
-                        unset($finalMask['quicParams']);
-                    }
+                    $finalMask = Hysteria2::xrayFinalMask($hysteria, $hy2);
                     $node = [
                         'protocol' => 'hysteria',
                         'settings' => [

@@ -31,6 +31,7 @@ namespace {
         'hysteria2' => [
             'version' => 2,
             'udpIdleTimeout' => 60,
+            'finalmask' => ['udp' => [['type' => 'salamander', 'settings' => ['password' => 'change-this-obfs-password']]]],
             'portHopping' => ['enabled' => true, 'ports' => '20000-20010,21000'],
         ],
     ];
@@ -56,7 +57,9 @@ namespace {
     check($sing['outbounds'][2]['server_ports'] === ['20000:20010', '21000'], 'sing-box ranges incorrect');
     check(! isset($sing['outbounds'][2]['server_port']), 'sing-box conflicting port fields');
     $xray = json_decode((new App\Services\Subscribe\V2RayJson())->getContent($user), true);
-    check($xray['outbounds'][0]['streamSettings']['finalmask']['quicParams']['udpHop']['ports'] === '20000-20010,21000', 'Xray hopping missing');
+    check($xray['outbounds'][0]['streamSettings']['finalmask']['udp'][1]['settings']['remotePorts'] === '20000-20010,21000', 'Xray hopping missing');
+    check($xray['outbounds'][0]['streamSettings']['finalmask']['udp'][1]['type'] === 'udphop', 'Xray hopping order incorrect');
+    check($xray['outbounds'][0]['streamSettings']['finalmask']['udp'][0]['type'] === 'salamander', 'Salamander removed');
     check(! isset($xray['outbounds'][0]['streamSettings']['tlsSettings']['allowInsecure']), 'obsolete TLS field exported');
     if (isset($argv[2])) {
         check(file_put_contents($argv[2], json_encode($xray)) !== false, 'failed to write hopping fixture');
@@ -66,6 +69,7 @@ namespace {
     check(! str_contains(App\Services\Subscribe\Hysteria2::buildUri($node, $user), 'mport='), 'disabled hopping published');
     $xray = json_decode((new App\Services\Subscribe\V2RayJson())->getContent($user), true);
     check(! isset($xray['outbounds'][0]['streamSettings']['finalmask']['quicParams']['udpHop']), 'disabled native hopping published');
+    check(count($xray['outbounds'][0]['streamSettings']['finalmask']['udp']) === 1, 'disabled udphop mask published');
     if (isset($argv[1])) {
         check(file_put_contents($argv[1], json_encode($xray)) !== false, 'failed to write fixture');
     }
@@ -85,5 +89,18 @@ namespace {
     $node->custom_config = json_encode($custom);
     $xray = json_decode((new App\Services\Subscribe\V2RayJson())->getContent($user), true);
     check($xray['outbounds'][0]['streamSettings']['tlsSettings']['pinnedPeerCertSha256'] === $custom['pinnedPeerCertSha256'], 'certificate pin dropped');
+    unset($custom['hysteria2']['portHopping']);
+    $custom['hysteria2']['finalmask']['quicParams']['udpHop'] = ['ports' => '22000-22010', 'interval' => 15];
+    $node->custom_config = json_encode($custom);
+    $hy2 = App\Services\Subscribe\Hysteria2::config($node);
+    $mask = App\Services\Subscribe\Hysteria2::xrayFinalMask($custom['hysteria2'], $hy2);
+    check(! isset($mask['quicParams']['udpHop']) && $mask['udp'][1]['settings']['interval'] === 15, 'legacy hop migration failed');
+    unset($custom['hysteria2']['finalmask']['quicParams']);
+    $custom['hysteria2']['finalmask']['udp'][] = ['type' => 'udphop', 'settings' => ['mode' => 'intervalremote', 'interval' => 20, 'remotePorts' => '23000-23010', 'remoteIPs' => ['192.0.2.1']]];
+    $node->custom_config = json_encode($custom);
+    $hy2 = App\Services\Subscribe\Hysteria2::config($node);
+    $mask = App\Services\Subscribe\Hysteria2::xrayFinalMask($custom['hysteria2'], $hy2);
+    check($hy2['ports'] === '23000-23010' && $hy2['hop_interval'] === 20.0, 'native hop not read');
+    check($mask['udp'][1]['settings']['remoteIPs'] === ['192.0.2.1'], 'native hop options lost');
     echo "Hysteria2 validation and subscription contracts passed\n";
 }

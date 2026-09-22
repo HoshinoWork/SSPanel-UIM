@@ -35,10 +35,16 @@ final class Hysteria2 extends Base
         $finalMask = $hysteria['finalmask'] ?? [];
         $quic = $finalMask['quicParams'] ?? [];
         $udpMasks = $finalMask['udp'] ?? [];
+        $nativeHop = [];
+        foreach ($udpMasks as $mask) {
+            if (($mask['type'] ?? '') === 'udphop') {
+                $nativeHop = $mask['settings'] ?? [];
+            }
+        }
         $hop = $hysteria['portHopping'] ?? [];
         $ports = array_key_exists('portHopping', $hysteria)
             ? (($hop['enabled'] ?? false) ? ($hop['ports'] ?? '') : '')
-            : ($quic['udpHop']['ports'] ?? '');
+            : ($nativeHop['remotePorts'] ?? ($quic['udpHop']['ports'] ?? ''));
         if (is_array($ports)) {
             $ports = implode(',', $ports);
         }
@@ -63,8 +69,43 @@ final class Hysteria2 extends Base
             'up_mbps' => self::bandwidthMbps($quic['brutalUp'] ?? null),
             'down_mbps' => self::bandwidthMbps($quic['brutalDown'] ?? null),
             'ports' => (string) $ports,
-            'hop_interval' => self::intervalSeconds($quic['udpHop']['interval'] ?? null),
+            'hop_interval' => self::intervalSeconds($nativeHop['interval'] ?? ($quic['udpHop']['interval'] ?? null)),
         ];
+    }
+
+    public static function xrayFinalMask(array $hysteria, array $config): ?array
+    {
+        $mask = $hysteria['finalmask'] ?? [];
+        $legacy = $mask['quicParams']['udpHop'] ?? [];
+        unset($mask['quicParams']['udpHop']);
+        $udp = [];
+        $nativeHop = null;
+        foreach ($mask['udp'] ?? [] as $item) {
+            if (($item['type'] ?? '') === 'udphop') {
+                $nativeHop = $item['settings'] ?? [];
+            } else {
+                $udp[] = $item;
+            }
+        }
+        $explicit = array_key_exists('portHopping', $hysteria);
+        $enabled = $explicit ? ($hysteria['portHopping']['enabled'] ?? false) : ($nativeHop !== null || $config['ports'] !== '');
+        if ($enabled) {
+            $settings = $nativeHop ?? ['mode' => 'intervalremote', 'interval' => $legacy['interval'] ?? 30];
+            if ($config['ports'] !== '') {
+                $settings['remotePorts'] = $config['ports'];
+            }
+            // The core applies masks in reverse order; udphop must wrap the raw socket first.
+            $udp[] = ['type' => 'udphop', 'settings' => $settings];
+        }
+        if ($udp !== []) {
+            $mask['udp'] = $udp;
+        } else {
+            unset($mask['udp']);
+        }
+        if (isset($mask['quicParams']) && $mask['quicParams'] === []) {
+            unset($mask['quicParams']);
+        }
+        return $mask ?: null;
     }
 
     public static function buildUri($node, $user): string
