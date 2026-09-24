@@ -5,7 +5,10 @@ declare(strict_types=1);
 use Smarty\Smarty;
 
 it('renders Hysteria2 defaults without interpreting JavaScript objects as Smarty tags', function (string $page) {
-    $source = file_get_contents(__DIR__ . '/../../../..' . '/resources/views/tabler/admin/node/' . $page . '.tpl');
+    $templatePath = dirname(__DIR__, 3) . '/resources/views/tabler/admin/node/' . $page . '.tpl';
+    expect(is_readable($templatePath))->toBeTrue("Template is not readable: {$templatePath}");
+    $source = file_get_contents($templatePath);
+    expect($source)->toBeString();
     // Isolate the page body from shared layouts and their application/database dependencies.
     $source = preg_replace('/\{include file=\'admin\/(?:header|footer)\.tpl\'\}/', '', $source);
     $compileDir = sys_get_temp_dir() . '/sspanel-node-template-' . bin2hex(random_bytes(8));
