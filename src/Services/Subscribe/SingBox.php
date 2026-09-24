@@ -194,10 +194,14 @@ final class SingBox extends Base
                         $node['down_mbps'] = $hy2['down_mbps'];
                     }
                     if ($hy2['ports'] !== '') {
-                        $node['server_ports'] = [$hy2['ports']];
+                        unset($node['server_port']);
+                        $node['server_ports'] = array_map(
+                            static fn (string $range): string => str_replace('-', ':', trim($range)),
+                            explode(',', $hy2['ports'])
+                        );
                     }
                     if ($hy2['hop_interval'] !== null) {
-                        $node['hop_interval'] = $hy2['hop_interval'];
+                        $node['hop_interval'] = $hy2['hop_interval'] . 's';
                     }
 
                     break;

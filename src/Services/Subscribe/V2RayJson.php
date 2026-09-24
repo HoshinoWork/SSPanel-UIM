@@ -169,6 +169,11 @@ final class V2RayJson extends Base
                 case 15:
                     $hy2 = Hysteria2::config($node_raw);
                     $hysteria = $node_custom_config['hysteria2'] ?? [];
+                    $pin = (string) ($node_custom_config['pinnedPeerCertSha256'] ?? '');
+                    if ($hy2['insecure'] && $pin === '') {
+                        throw new \InvalidArgumentException('Xray Hysteria2 requires pinnedPeerCertSha256 for an untrusted certificate; allowInsecure is no longer supported.');
+                    }
+                    $finalMask = Hysteria2::xrayFinalMask($hysteria, $hy2);
                     $node = [
                         'protocol' => 'hysteria',
                         'settings' => [
@@ -185,10 +190,11 @@ final class V2RayJson extends Base
                                 'auth' => $user->uuid,
                                 'udpIdleTimeout' => $hysteria['udpIdleTimeout'] ?? 0,
                             ],
-                            'finalmask' => $hysteria['finalmask'] ?? null,
+                            'finalmask' => $finalMask ?: null,
                             'tlsSettings' => [
                                 'serverName' => $hy2['sni'],
-                                'allowInsecure' => $hy2['insecure'],
+                                'alpn' => ['h3'],
+                                'pinnedPeerCertSha256' => $pin,
                             ],
                         ],
                     ];

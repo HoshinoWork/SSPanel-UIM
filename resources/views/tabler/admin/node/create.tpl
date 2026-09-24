@@ -194,6 +194,7 @@
     const editor = new JSONEditor(container, options);
     editor.set({});
 
+    {literal}
     $('#sort').on('change', function () {
         if ($(this).val() === '15' && Object.keys(editor.get()).length === 0) {
             editor.set({
@@ -206,7 +207,7 @@
                     udpIdleTimeout: 60,
                     masquerade: {type: '404'},
                     finalmask: {
-                        udp: [{type: 'salamander', settings: {password: ''}}],
+                        udp: [],
                         quicParams: {congestion: 'bbr'},
                     },
                     portHopping: {enabled: false, autoConfigureFirewall: false, ports: ''},
@@ -214,6 +215,8 @@
             });
         }
     });
+
+    {/literal}
 
     $("#create-node").click(function () {
         $.ajax({
