@@ -242,6 +242,7 @@
     const editor = new JSONEditor(container, options);
     editor.set({$node->custom_config})
 
+    {literal}
     $('#sort').on('change', function () {
         if ($(this).val() === '15' && Object.keys(editor.get()).length === 0) {
             editor.set({
@@ -262,6 +263,8 @@
             });
         }
     });
+
+    {/literal}
 
     $("#reset-bandwidth").click(function () {
         $.ajax({
