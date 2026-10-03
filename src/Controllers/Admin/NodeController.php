@@ -260,6 +260,17 @@ final class NodeController extends BaseController
         if (! is_array($config) || ! is_object(json_decode($raw))) {
             return 'custom_config 必须是有效的 JSON 对象';
         }
+        if ($sort === 11 && \App\Services\Subscribe\Vless::enabled($config)) {
+            try {
+                \App\Services\Subscribe\Vless::client($config, '');
+                if (filter_var($config['offset_port_node'] ?? null, FILTER_VALIDATE_INT,
+                    ['options' => ['min_range' => 1, 'max_range' => 65535]]) === false) {
+                    return 'VLESS 的 offset_port_node 必须是 1-65535 的端口';
+                }
+            } catch (\InvalidArgumentException | \RuntimeException $error) {
+                return 'VLESS custom_config 无效：' . $error->getMessage();
+            }
+        }
         if ($sort !== 15) {
             return null;
         }
