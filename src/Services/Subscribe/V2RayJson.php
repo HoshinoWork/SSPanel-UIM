@@ -113,11 +113,13 @@ final class V2RayJson extends Base
                         $node = [
                             'protocol' => 'vless',
                             'settings' => [
-                                'vnext' => [[
-                                    'address' => $node_raw->server,
-                                    'port' => $client['port'],
-                                    'users' => [$account],
-                                ]],
+                                'vnext' => [
+                                    [
+                                        'address' => $node_raw->server,
+                                        'port' => $client['port'],
+                                        'users' => [$account],
+                                    ],
+                                ],
                             ],
                             'tag' => $node_raw->name,
                             'streamSettings' => $stream,

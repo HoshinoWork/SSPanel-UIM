@@ -6,6 +6,8 @@ namespace App\Services\Subscribe;
 
 abstract class Base
 {
+    abstract public function getContent($user): string;
+
     /** Isolate invalid VLESS nodes without logging credentials or private keys. */
     protected function vlessClient(object $node, array $config, bool $xray = false): ?array
     {
@@ -20,6 +22,4 @@ abstract class Base
             return null;
         }
     }
-
-    abstract public function getContent($user): string;
 }

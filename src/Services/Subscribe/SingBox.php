@@ -280,7 +280,7 @@ final class SingBox extends Base
             }
             $singbox_config['outbounds'][] = ['type' => 'direct', 'tag' => $emptyTag];
             foreach ($singbox_config['outbounds'] as &$outbound) {
-                if (in_array($outbound['type'] ?? '', ['selector', 'urltest'], true) && empty($outbound['outbounds'])) {
+                if (in_array($outbound['type'] ?? '', ['selector', 'urltest'], true) && ! ($outbound['outbounds'] ?? [])) {
                     if ($outbound['type'] === 'urltest') {
                         // No background direct connectivity probes for an unavailable profile.
                         $outbound = ['type' => 'selector', 'tag' => $outbound['tag'], 'outbounds' => []];
