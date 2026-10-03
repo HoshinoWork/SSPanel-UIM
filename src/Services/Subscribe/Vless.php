@@ -51,8 +51,11 @@ final class Vless
         if (! in_array($config['flow'] ?? '', ['', 'xtls-rprx-vision'], true)) {
             throw new InvalidArgumentException('Unsupported VLESS flow.');
         }
-        $port = filter_var($config['offset_port_user'] ?? ($config['offset_port_node'] ?? 443), FILTER_VALIDATE_INT,
-            ['options' => ['min_range' => 1, 'max_range' => 65535]]);
+        $port = filter_var(
+            $config['offset_port_user'] ?? ($config['offset_port_node'] ?? 443),
+            FILTER_VALIDATE_INT,
+            ['options' => ['min_range' => 1, 'max_range' => 65535]]
+        );
         if ($port === false) {
             throw new InvalidArgumentException('VLESS client port must be between 1 and 65535.');
         }

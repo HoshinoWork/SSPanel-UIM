@@ -8,7 +8,7 @@ use App\Services\DB;
 return new class() implements MigrationInterface {
     public function up(): int
     {
-        DB::getPdo()->exec("
+        DB::getPdo()->exec('
             CREATE TABLE `xrayr_traffic_reports` (
                 `report_id` char(32) NOT NULL,
                 `node_id` int(11) NOT NULL,
@@ -16,7 +16,7 @@ return new class() implements MigrationInterface {
                 PRIMARY KEY (`report_id`, `node_id`),
                 KEY `created_at` (`created_at`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-        ");
+        ');
 
         return 2026091300;
     }

@@ -43,7 +43,7 @@ final class Hysteria2 extends Base
         }
         $hop = $hysteria['portHopping'] ?? [];
         $ports = array_key_exists('portHopping', $hysteria)
-            ? (($hop['enabled'] ?? false) ? ($hop['ports'] ?? '') : '')
+            ? ($hop['enabled'] ?? false ? ($hop['ports'] ?? '') : '')
             : ($nativeHop['remotePorts'] ?? ($quic['udpHop']['ports'] ?? ''));
         if (is_array($ports)) {
             $ports = implode(',', $ports);
