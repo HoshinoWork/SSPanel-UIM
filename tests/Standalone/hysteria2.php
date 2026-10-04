@@ -16,6 +16,9 @@ namespace {
     foreach (['Base', 'Hysteria2', 'SingBox', 'V2RayJson'] as $class) {
         require $root . '/src/Services/Subscribe/' . $class . '.php';
     }
+    if (function_exists('yaml_parse')) {
+        require $root . '/src/Services/Subscribe/Clash.php';
+    }
     require $root . '/src/Controllers/BaseController.php';
     require $root . '/src/Controllers/Admin/NodeController.php';
     function check(bool $condition, string $message): void {
@@ -102,5 +105,37 @@ namespace {
     $mask = App\Services\Subscribe\Hysteria2::xrayFinalMask($custom['hysteria2'], $hy2);
     check($hy2['ports'] === '23000-23010' && $hy2['hop_interval'] === 20.0, 'native hop not read');
     check($mask['udp'][1]['settings']['remoteIPs'] === ['192.0.2.1'], 'native hop options lost');
-    echo "Hysteria2 validation and subscription contracts passed\n";
+    foreach ([
+        ['top' => null, 'nested' => null, 'legacy' => ['enable' => true, 'ports' => '52000-52100'], 'ports' => '52000-52100'],
+        ['top' => null, 'nested' => ['enabled' => true, 'ports' => '51000-51100'], 'legacy' => ['enable' => true, 'ports' => '52000-52100'], 'ports' => '51000-51100'],
+        ['top' => ['enabled' => true, 'ports' => '50000-50100', 'interval' => '5-10'], 'nested' => ['enabled' => true, 'ports' => '51000-51100'], 'legacy' => ['enable' => true, 'ports' => '52000-52100'], 'ports' => '50000-50100'],
+        ['top' => ['enabled' => false], 'nested' => ['enabled' => true, 'ports' => '51000-51100'], 'legacy' => ['enable' => true, 'ports' => '52000-52100'], 'ports' => ''],
+        ['top' => (object) [], 'nested' => ['enabled' => true, 'ports' => '51000-51100'], 'legacy' => ['enable' => true, 'ports' => '52000-52100'], 'ports' => ''],
+        ['top' => null, 'nested' => null, 'legacy' => ['enable' => false, 'ports' => '52000-52100'], 'ports' => ''],
+    ] as $case) {
+        $settings = ['offset_port_node' => 443, 'portHopping' => $case['top'], 'hysteria2' => ['version' => 2, 'portHopping' => $case['nested'], 'finalmask' => ['quicParams' => ['udpHop' => $case['legacy']]]]];
+        $node->custom_config = json_encode($settings);
+        check($validate->invoke($controller, 15, $node->custom_config) === null, 'priority configuration rejected');
+        $hy2 = App\Services\Subscribe\Hysteria2::config($node);
+        check($hy2['ports'] === $case['ports'], 'hopping priority mismatch');
+        $uri = App\Services\Subscribe\Hysteria2::buildUri($node, $user);
+        check(str_contains($uri, 'mport=') === ($case['ports'] !== ''), 'URI hop enable mismatch');
+        $_ENV['SingBox_Config'] = ['outbounds' => [['type' => 'selector', 'outbounds' => []], ['type' => 'urltest', 'outbounds' => []]]];
+        $sing = json_decode((new App\Services\Subscribe\SingBox())->getContent($user), true);
+        check(isset($sing['outbounds'][2]['server_ports']) === ($case['ports'] !== ''), 'sing-box hop enable mismatch');
+        $xray = json_decode((new App\Services\Subscribe\V2RayJson())->getContent($user), true);
+        $mask = $xray['outbounds'][0]['streamSettings']['finalmask']['udp'] ?? [];
+        check(($mask !== []) === ($case['ports'] !== ''), 'Xray hop enable mismatch');
+        if ($case['ports'] !== '') {
+            check($mask[0]['settings']['remotePorts'] === $case['ports'], 'Xray selected wrong range');
+        }
+        if (function_exists('yaml_parse')) {
+            $_ENV['Clash_Config'] = [];
+            $_ENV['Clash_Group_Indexes'] = [];
+            $_ENV['Clash_Group_Config'] = [];
+            $clash = yaml_parse((new App\Services\Subscribe\Clash())->getContent($user));
+            check(($clash['proxies'][0]['ports'] ?? '') === $case['ports'], 'Clash selected wrong range');
+        }
+    }
+    echo "Hysteria2 validation, precedence and subscription contracts passed\n";
 }

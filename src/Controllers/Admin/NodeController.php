@@ -428,16 +428,21 @@ final class NodeController extends BaseController
                 return 'Salamander 密码必须至少包含 4 字节';
             }
         }
-        $hop = $hysteria['portHopping'] ?? null;
-        if ($hop !== null && ! is_object($objects->hysteria2->portHopping)) {
+        $hop = \App\Services\Subscribe\Hysteria2::portHopping($config);
+        $hopObject = $objects->portHopping ?? $objects->hysteria2->portHopping ??
+            $objects->hysteria2->finalmask->quicParams->udpHop ?? null;
+        if ($hop !== null && ! is_object($hopObject)) {
             return 'portHopping 必须是对象';
         }
-        foreach (['enabled', 'autoConfigureFirewall'] as $key) {
+        foreach (['enabled', 'enable', 'autoConfigureFirewall'] as $key) {
             if (isset($hop[$key]) && ! is_bool($hop[$key])) {
                 return 'portHopping 开关必须使用 JSON 布尔值';
             }
         }
-        if (is_array($hop) && ($hop['enabled'] ?? false)) {
+        if (isset($hop['enabled'], $hop['enable']) && $hop['enabled'] !== $hop['enable']) {
+            return 'portHopping enabled 与 enable 不能互相矛盾';
+        }
+        if (is_array($hop) && ($hop['enabled'] ?? ($hop['enable'] ?? false))) {
             if (! is_string($hop['ports'] ?? null)) {
                 return 'portHopping.ports 必须是字符串';
             }

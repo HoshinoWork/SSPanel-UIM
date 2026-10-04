@@ -41,9 +41,9 @@ final class Hysteria2 extends Base
                 $nativeHop = $mask['settings'] ?? [];
             }
         }
-        $hop = $hysteria['portHopping'] ?? [];
-        $ports = array_key_exists('portHopping', $hysteria)
-            ? ($hop['enabled'] ?? false ? ($hop['ports'] ?? '') : '')
+        $hop = self::portHopping($custom);
+        $ports = $hop !== null
+            ? ($hop['enabled'] ?? ($hop['enable'] ?? false) ? ($hop['ports'] ?? '') : '')
             : ($nativeHop['remotePorts'] ?? ($quic['udpHop']['ports'] ?? ''));
         if (is_array($ports)) {
             $ports = implode(',', $ports);
@@ -69,8 +69,24 @@ final class Hysteria2 extends Base
             'up_mbps' => self::bandwidthMbps($quic['brutalUp'] ?? null),
             'down_mbps' => self::bandwidthMbps($quic['brutalDown'] ?? null),
             'ports' => (string) $ports,
-            'hop_interval' => self::intervalSeconds($nativeHop['interval'] ?? ($quic['udpHop']['interval'] ?? null)),
+            'hop_enabled' => $hop !== null ? (bool) ($hop['enabled'] ?? ($hop['enable'] ?? false)) : ($nativeHop !== [] || $ports !== ''),
+            'hop_interval' => self::intervalSeconds($hop['interval'] ?? ($nativeHop['interval'] ?? ($quic['udpHop']['interval'] ?? null))),
+            'hop_interval_override' => $hop['interval'] ?? null,
         ];
+    }
+
+    /** Select one whole deployment object; explicit disable overrides legacy enable. */
+    public static function portHopping(array $custom): mixed
+    {
+        $top = $custom['portHopping'] ?? $custom['hysteria2']['portHopping'] ?? null;
+        if ($top !== null) {
+            return $top;
+        }
+        $legacy = $custom['hysteria2']['finalmask']['quicParams']['udpHop'] ?? null;
+        if (is_array($legacy) && ! isset($legacy['enabled']) && ! isset($legacy['enable'])) {
+            $legacy['enabled'] = ($legacy['ports'] ?? '') !== '';
+        }
+        return $legacy;
     }
 
     public static function xrayFinalMask(array $hysteria, array $config): ?array
@@ -88,9 +104,12 @@ final class Hysteria2 extends Base
             }
         }
         $explicit = array_key_exists('portHopping', $hysteria);
-        $enabled = $explicit ? ($hysteria['portHopping']['enabled'] ?? false) : ($nativeHop !== null || $config['ports'] !== '');
+        $enabled = $config['hop_enabled'] ?? ($explicit ? ($hysteria['portHopping']['enabled'] ?? false) : ($nativeHop !== null || $config['ports'] !== ''));
         if ($enabled) {
             $settings = $nativeHop ?? ['mode' => 'intervalremote', 'interval' => $legacy['interval'] ?? 30];
+            if ($config['hop_interval_override'] ?? null) {
+                $settings['interval'] = $config['hop_interval_override'];
+            }
             if ($config['ports'] !== '') {
                 $settings['remotePorts'] = $config['ports'];
             }
