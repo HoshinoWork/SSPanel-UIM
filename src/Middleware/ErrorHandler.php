@@ -26,8 +26,13 @@ final class ErrorHandler implements MiddlewareInterface
      */
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        $user = AuthService::getUser();
         $path = $request->getUri()->getPath();
+        if ($path === '/client/v1' || str_starts_with($path, '/client/v1/')) {
+            // Native clients must not pass through Cookie authentication or the
+            // website's debug HTML renderer, including unknown API routes.
+            return (new ClientApi())->process($request, $handler);
+        }
+        $user = AuthService::getUser();
 
         if (str_contains($path, '/admin') && ! $user->is_admin) {
             $response_factory = AppFactory::determineResponseFactory();

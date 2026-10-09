@@ -103,6 +103,11 @@ $_ENV['jump_delay'] = 1000;               //跳转延时，单位ms
 $_ENV['keep_connect'] = false;            // 流量耗尽用户限速至 1Mbps
 
 //Other-----------------------------------------------------------------------------------------------------------------
+// Native client REST API. Run the database migration before enabling.
+$_ENV['client_api_enabled'] = false;
+$_ENV['client_api_allow_http'] = false; // Local development only.
+$_ENV['client_api_access_ttl'] = 900;
+$_ENV['client_api_refresh_ttl'] = 2592000;
 // cdn.jsdelivr.net / fastly.jsdelivr.net / testingcf.jsdelivr.net
 $_ENV['jsdelivr_url'] = 'fastly.jsdelivr.net';
 // https://sentry.io for production debugging

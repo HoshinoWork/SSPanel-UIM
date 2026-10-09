@@ -9,6 +9,7 @@ use App\Middleware\User;
 use Slim\Routing\RouteCollectorProxy;
 
 return static function (Slim\App $app): void {
+    (require __DIR__ . '/client-routes.php')($app);
     // Home
     $app->get('/', App\Controllers\HomeController::class . ':index');
     $app->get('/tos', App\Controllers\HomeController::class . ':tos');
