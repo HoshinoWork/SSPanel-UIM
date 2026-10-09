@@ -5,11 +5,6 @@ declare(strict_types=1);
 namespace App\Services\Gateway;
 
 use App\Models\Config;
-use App\Models\Invoice;
-use App\Models\Paylist;
-use App\Models\User;
-use App\Models\UserMoneyLog;
-use App\Services\Reward;
 use App\Utils\Tools;
 use Psr\Http\Message\ResponseInterface;
 use Slim\Http\Response;
@@ -18,7 +13,6 @@ use voku\helper\AntiXSS;
 use function get_called_class;
 use function in_array;
 use function json_decode;
-use function time;
 
 abstract class Base
 {
@@ -52,42 +46,7 @@ abstract class Base
 
     public function postPayment(string $trade_no): void
     {
-        $paylist = (new Paylist())->where('tradeno', $trade_no)->first();
-
-        if ($paylist?->status === 0) {
-            $paylist->datetime = time();
-            $paylist->status = 1;
-            $paylist->save();
-        }
-
-        $invoice = (new Invoice())->where('id', $paylist?->invoice_id)->first();
-
-        if (($invoice?->status === 'unpaid' || $invoice?->status === 'partially_paid') &&
-            (int) $paylist?->total >= (int) $invoice?->price) {
-            $invoice->status = 'paid_gateway';
-            $invoice->update_time = time();
-            $invoice->pay_time = time();
-            $invoice->save();
-        }
-
-        $user = (new User())->find($paylist?->userid);
-
-        if ($paylist?->total > $invoice?->price) {
-            $money_before = $user->money;
-            $user->money += $paylist?->total - $invoice?->price;
-            $user->save();
-            (new UserMoneyLog())->add(
-                $user->id,
-                $money_before,
-                $user->money,
-                $paylist?->total - $invoice?->price,
-                '超额支付账单 #' . $invoice?->id
-            );
-        }
-
-        if ($user !== null && $user->ref_by > 0 && Config::obtain('invite_mode') === 'reward') {
-            Reward::issuePaybackReward($user->id, $user->ref_by, $invoice?->price, $paylist?->invoice_id);
-        }
+        \App\Services\Billing\Settlement::complete($trade_no);
     }
 
     public static function generateGuid(): string
@@ -108,7 +67,7 @@ abstract class Base
     protected static function getActiveGateway(string $key): bool
     {
         $payment_gateways = (new Config())->where('item', 'payment_gateway')->first();
-        $active_gateways = json_decode($payment_gateways->value);
+        $active_gateways = $payment_gateways === null ? [] : json_decode($payment_gateways->value, true);
 
         if (in_array($key, $active_gateways)) {
             return true;
