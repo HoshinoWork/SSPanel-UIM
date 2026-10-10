@@ -8,7 +8,6 @@ use App\Models\Config;
 use App\Models\Payback;
 use App\Models\User;
 use App\Models\UserMoneyLog;
-use App\Services\Client\Input;
 use App\Utils\Tools;
 use Exception;
 use function random_int;
@@ -18,18 +17,15 @@ final class Reward
 {
     public static function issuePaybackReward($user_id, $ref_user_id, $total, $invoice_id): void
     {
-        $ref_get = '0.00';
-        $total = Input::storedMoney($total);
+        $ref_get = 0;
 
         $ref_user = (new User())->where('id', $ref_user_id)
             ->where('is_banned', 0)
             ->where('is_shadow_banned', 0)
-            ->lockForUpdate()
             ->first();
 
         $exsit_payback = (new Payback())->where('userid', $user_id)
             ->where('invoice_id', $invoice_id)
-            ->lockForUpdate()
             ->first();
 
         if ($ref_user !== null && $exsit_payback === null) {
@@ -41,44 +37,40 @@ final class Reward
 
                 $invite_reward_count = (new Payback())->where('userid', $user_id)
                     ->where('ref_by', $ref_user_id)
-                    ->lockForUpdate()->get()->count();
+                    ->count();
 
                 if ($invite_reward_count < $invite_reward_count_limit) {
-                    $ref_get = bcadd(bcmul($total, (string) $invite_reward_rate, 6), '0.005', 2);
+                    $ref_get = $total * $invite_reward_rate;
                 }
             }
 
             if ($invite_reward_mode === 'reward_total') {
                 $invite_reward_total_limit = Config::obtain('invite_reward_total_limit');
 
-                $rewards = (new Payback())->where('userid', $user_id)
+                $invite_reward_total = (new Payback())->where('userid', $user_id)
                     ->where('ref_by', $ref_user_id)
-                    ->lockForUpdate()->get();
-                $invite_reward_total = '0.00';
-                foreach ($rewards as $reward) {
-                    $invite_reward_total = bcadd($invite_reward_total, Input::storedMoney($reward->getRawOriginal('ref_get')), 2);
-                }
+                    ->sum('ref_get');
 
                 if ($invite_reward_total < $invite_reward_total_limit) {
-                    $ref_get = bcadd(bcmul($total, (string) $invite_reward_rate, 6), '0.005', 2);
+                    $ref_get = $total * $invite_reward_rate;
 
                     if ($invite_reward_total + $ref_get > $invite_reward_total_limit) {
-                        $ref_get = bcsub((string) $invite_reward_total_limit, $invite_reward_total, 2);
+                        $ref_get = $invite_reward_total_limit - $invite_reward_total;
                     }
                 }
             }
         }
 
-        if (bccomp($ref_get, '0', 2) > 0) {
-            $money_before = Input::storedMoney($ref_user->getRawOriginal('money'));
-            $ref_user->money = bcadd($money_before, $ref_get, 2);
+        if ($ref_get !== 0) {
+            $money_before = $ref_user->money;
+            $ref_user->money += $ref_get;
             $ref_user->save();
             // 添加余额记录
             (new UserMoneyLog())->add(
                 $ref_user->id,
                 (float) $money_before,
                 (float) $ref_user->money,
-                (float) $ref_get,
+                $ref_get,
                 '邀请用户 #' . $user_id . ' 返利',
             );
             // 添加返利记录
@@ -128,33 +120,31 @@ final class Reward
 
     public static function issueCheckinReward($user_id): int|false
     {
-        return DB::connection()->transaction(static function () use ($user_id): int|false {
-            $user = (new User())->where('id', $user_id)->lockForUpdate()->first();
+        $user = (new User())->where('id', $user_id)->first();
 
-            if ($user === null || ! $user->isAbleToCheckin()) {
-                return false;
+        if ($user === null) {
+            return false;
+        }
+
+        $checkin_min = Config::obtain('checkin_min');
+        $checkin_max = Config::obtain('checkin_max');
+
+        if ($checkin_min === $checkin_max) {
+            $traffic = $checkin_min;
+        } else {
+            try {
+                $traffic = random_int($checkin_min, $checkin_max);
+            } catch (Exception) {
+                $traffic = 0;
             }
+        }
 
-            $checkin_min = Config::obtain('checkin_min');
-            $checkin_max = Config::obtain('checkin_max');
+        if ($traffic !== 0) {
+            $user->transfer_enable += Tools::mbToB($traffic);
+            $user->last_check_in_time = time();
+            $user->save();
+        }
 
-            if ($checkin_min === $checkin_max) {
-                $traffic = $checkin_min;
-            } else {
-                try {
-                    $traffic = random_int($checkin_min, $checkin_max);
-                } catch (Exception) {
-                    $traffic = 0;
-                }
-            }
-
-            if ($traffic !== 0) {
-                $user->transfer_enable += Tools::mbToB($traffic);
-                $user->last_check_in_time = time();
-                $user->save();
-            }
-
-            return $traffic;
-        });
+        return $traffic;
     }
 }

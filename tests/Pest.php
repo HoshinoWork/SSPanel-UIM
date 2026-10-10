@@ -48,7 +48,7 @@ expect()->extend('toBeValidPort', function () {
 arch('controllers extend base controller')
     ->expect('App\Controllers')
     ->toExtend('App\Controllers\BaseController')
-    ->ignoring(['App\Controllers\BaseController', 'App\Controllers\Client']);
+    ->ignoring('App\Controllers\BaseController');
 
 arch('models extend eloquent')
     ->expect('App\Models')

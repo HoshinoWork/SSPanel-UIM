@@ -22,7 +22,7 @@ final class EpayTool
         $prestr .= $key;
         $correct_sign = hash(Config::obtain('epay_sign_type'), $prestr);
 
-        return is_string($sign) && hash_equals($correct_sign, $sign);
+        return $correct_sign === $sign;
     }
 
     public static function createLinkstring($para): string

@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace App\Controllers\User;
 
 use App\Controllers\BaseController;
+use App\Models\GiftCard;
 use App\Models\UserMoneyLog;
 use App\Utils\Tools;
 use Exception;
 use Psr\Http\Message\ResponseInterface;
 use Slim\Http\Response;
 use Slim\Http\ServerRequest;
+use function time;
 
 final class MoneyController extends BaseController
 {
@@ -38,11 +40,45 @@ final class MoneyController extends BaseController
 
     public function applyGiftCard(ServerRequest $request, Response $response, array $args): ResponseInterface
     {
-        try {
-            \App\Services\DB::connection()->transaction(fn (): array => \App\Services\Client\Commerce::gift($this->user, ['code' => (string) $request->getParam('giftcard')]));
-            return $response->withJson(['ret' => 1, 'msg' => '充值成功']);
-        } catch (\App\Services\Client\ApiException $error) {
-            return $response->withJson(['ret' => 0, 'msg' => $error->getMessage()]);
+        $giftcard_raw = $this->antiXss->xss_clean($request->getParam('giftcard'));
+        $giftcard = (new GiftCard())->where('card', $giftcard_raw)->first();
+
+        if ($giftcard === null || $giftcard->status !== 0) {
+            return $response->withJson([
+                'ret' => 0,
+                'msg' => '礼品卡无效',
+            ]);
         }
+
+        $user = $this->user;
+
+        if ($user->is_shadow_banned) {
+            return $response->withJson([
+                'ret' => 0,
+                'msg' => '礼品卡无效',
+            ]);
+        }
+
+        $giftcard->status = 1;
+        $giftcard->use_time = time();
+        $giftcard->use_user = $user->id;
+        $giftcard->save();
+
+        $money_before = $user->money;
+        $user->money += $giftcard->balance;
+        $user->save();
+
+        (new UserMoneyLog())->add(
+            $user->id,
+            $money_before,
+            (float) $user->money,
+            $giftcard->balance,
+            '礼品卡充值 ' . $giftcard->card
+        );
+
+        return $response->withJson([
+            'ret' => 1,
+            'msg' => '充值成功',
+        ]);
     }
 }
