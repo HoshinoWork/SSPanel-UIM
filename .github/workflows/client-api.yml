@@ -2,7 +2,7 @@ name: Native Client API Security Regression
 
 on:
   push:
-    branches: [feat/hysteria2-sspanel]
+    branches: [feat-client-v1-api]
   pull_request:
     paths:
       - 'src/**'

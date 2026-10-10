@@ -1,6 +1,6 @@
 # Client API v1 安全与事务检查记录
 
-本记录对应 `docs/client-v1.md` 和 `docs/client-v1.openapi.json` 描述的首版 `/client/v1`，基于 `HoshinoWork/SSPanel-UIM` 的 `feat/hysteria2-sspanel`，基线提交 `d6c6a98d`。这是一份代码审查与回归结果，不是渗透测试报告，也不承诺绝对安全。
+本记录对应 `docs/client-v1.md` 和 `docs/client-v1.openapi.json` 描述的首版 `/client/v1`，维护于 `HoshinoWork/SSPanel-UIM` 的 `feat-client-v1-api`。代码基线来自 `feat/hysteria2-sspanel` 的提交 `d6c6a98d`；分支分离后，从代码内容相同的撤销提交 `a36b7cc5` 重新应用 API 改动，客户端 API 独立维护。这是一份代码审查与回归结果，不是渗透测试报告，也不承诺绝对安全。
 
 ## 审查范围与调用路径
 

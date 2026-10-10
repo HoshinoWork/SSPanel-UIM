@@ -255,7 +255,7 @@ CLIENT_TEST_MYSQL_PASSWORD=TEST_DATABASE_PASSWORD \
 vendor/bin/phpunit --no-configuration --bootstrap vendor/autoload.php --fail-on-warning --fail-on-risky tests/Integration/Services/Client/ClientApiTest.php
 ```
 
-本地 Unix socket 可用 `CLIENT_TEST_MYSQL_SOCKET` 指定。并发测试依赖 `pcntl`，没有 MariaDB 或 pcntl 时明确跳过，不能把 SQLite 的结果当作并发保证。`Native Client API Security Regression` 工作流在 `feat/hysteria2-sspanel` 推送、相关 PR 和手动触发时运行 PHP 8.2/8.3/8.4 的 SQLite 和 MariaDB 测试，并做依赖审计；PHP 8.3 运行严格 lint。
+本地 Unix socket 可用 `CLIENT_TEST_MYSQL_SOCKET` 指定。并发测试依赖 `pcntl`，没有 MariaDB 或 pcntl 时明确跳过，不能把 SQLite 的结果当作并发保证。`Native Client API Security Regression` 工作流在 `feat-client-v1-api` 推送、相关 PR 和手动触发时运行 PHP 8.2/8.3/8.4 的 SQLite 和 MariaDB 测试，并做依赖审计；PHP 8.3 运行严格 lint。
 
 自动测试使用模拟网关与临时生成的测试 RSA 密钥，不使用生产付款、不使用真实用户数据。正式启用前仍需在测试商户/小额授权场景验证供应商配置、异步通知公网可达、实际回款、四个平台验证码/Passkey 网页及原生支付交互。
 
